@@ -57,6 +57,5 @@ network-traffic-anomaly-analysis/
 
 ## Project Status
 
-This project is currently under development as part of a semester mini-project in the AIML program.
-
+Data pre-processing and window-based aggregation pipeline is finalized
 The focus is on building a structured pipeline for anomaly detection and analysis in network traffic.
