@@ -3,3 +3,5 @@ venv/
 .venv/
 *.csv
 dataset/
+models/
+models/*.pkl

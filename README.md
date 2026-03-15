@@ -50,6 +50,8 @@ network-traffic-anomaly-analysis/
 │   ├── 01_data_understanding_and_windowing.ipynb
 │   └── 02_baseline_anomaly_detection.ipynb
 |
+├── models/
+|
 ├── README.md
 └── requirements.txt
 ```
