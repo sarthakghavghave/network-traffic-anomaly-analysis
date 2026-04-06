@@ -1,4 +1,3 @@
-# pages/2_Live_Monitor.py
 import time
 import json
 import streamlit as st
