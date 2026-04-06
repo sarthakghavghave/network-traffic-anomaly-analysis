@@ -17,6 +17,6 @@ TOP_FEATURES = [
     'sttl_mean',
     'sbytes_mean',
     'dbytes_mean',
-    'service_dns_mean'
+    'service_dns_mean',
     'rate_mean',
 ]
