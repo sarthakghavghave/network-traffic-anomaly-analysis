@@ -7,3 +7,6 @@ shap
 streamlit
 plotly
 scapy
+xgboost
+tensorflow
+joblib
