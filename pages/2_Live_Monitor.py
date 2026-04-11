@@ -3,23 +3,44 @@ import json
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from config import BEST_THRESHOLD, PROCESSED_DIR
-from utils import load_models, load_data, predict_window
+from scripts.config import PROCESSED_DIR
+from utils import load_pipeline, load_data, predict_window
 
-iso, scaler, rf = load_models()
+st.set_page_config(page_title="Live Monitor", page_icon="📡", layout="wide")
+
+# Custom Styling
+st.markdown("""
+<style>
+    .main { background-color: #FFFFFF; }
+    .stMetric { background-color: #F8F9FA; padding: 10px; border-radius: 8px; border: 1px solid #E9ECEF; }
+    h1, h2, h3 { color: #212529; }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("📡 Live Monitor")
+st.markdown("Scoring real network traffic captured from your network interface.")
+
+# Sidebar Configuration
+st.sidebar.header("🛠️ Configuration")
+pipeline_type = st.sidebar.selectbox(
+    "Detection Pipeline",
+    ["Isolation Forest + RF", "Autoencoder + SVM"],
+    index=1
+)
+
+# Load resources
+s1_model, scaler, s2_model, model_threshold = load_pipeline(pipeline_type)
 _, _, _, expected_cols = load_data()
 feature_cols = [col for col in expected_cols if col not in ['window_id', 'window_attack']]
 
 BUFFER_FILE = PROCESSED_DIR / "live_buffer.json"
 
-st.title("Live Monitor")
-st.markdown("Scoring real network traffic captured from your network adapter.")
 st.info(
     "Run `python scripts/live_monitor.py` as Administrator before connecting.\n\n"
-    "Run `python scripts/simulate_attack.py` to trigger a test anomaly."
+    "Anomalies will be flagged based on the selected pipeline's logic."
 )
 
-start = st.button("Connect", type="primary", use_container_width=True)
+start = st.button("Connect to Live Stream", type="primary", use_container_width=True)
 st.markdown("---")
 
 m1, m2, m3 = st.columns(3)
@@ -43,7 +64,7 @@ def read_buffer():
         return []
 
 if start:
-    st.success("Connected. Waiting for traffic windows...")
+    st.success(f"Connected using {pipeline_type}. Waiting for traffic...")
 
     last_id      = -1
     history      = []
@@ -57,20 +78,20 @@ if start:
             new_windows = [w for w in buffer if w['window_id'] > last_id]
 
             for w in new_windows:
-                df_row           = pd.DataFrame([w])
-                score, s1, s2    = predict_window(df_row, feature_cols, scaler, iso, rf)
+                df_row = pd.DataFrame([w])
+                score, threshold, s1, s2 = predict_window(df_row, feature_cols, scaler, s1_model, s2_model, pipeline_type)
 
                 if s1 == 1: total_flags   += 1
                 if s2 == 1: total_attacks += 1
 
-                if s2 == 1:             verdict = 'Attack'
-                elif s1 == 1 and s2==0: verdict = 'FP Reduced'
+                if s2 == 1:             verdict = 'Attack (Detected)'
+                elif s1 == 1 and s2==0: verdict = 'FP Blocked'
                 else:                   verdict = 'Normal'
 
                 history.append({
                     'window_id': w['window_id'],
                     'rate':      round(w.get('raw_rate', 0), 1),
-                    'score':     round(-score, 4),
+                    'score':     round(score, 4),
                     'stage1':    s1,
                     'final':     s2,
                     'verdict':   verdict
@@ -83,40 +104,44 @@ if start:
             current_rate = buffer[-1].get('raw_rate', 0)
             m_rate.metric("Traffic Rate",   f"{current_rate:.1f} pkts/s")
             m_flags.metric("Stage 1 Flags", total_flags)
-            m_attacks.metric("Attacks Detected", total_attacks)
+            m_attacks.metric("Attacks Confirmed", total_attacks)
 
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=df_display['window_id'], y=df_display['score'],
-                mode='lines+markers', name='Anomaly Score',
-                line=dict(color='royalblue', width=2),
+                mode='lines+markers', name='Suspicion Score',
+                line=dict(color='#007BFF', width=2),
                 marker=dict(size=4)
             ))
             fig.add_hline(
-                y=-BEST_THRESHOLD, line_dash='dash', line_color='orange',
-                annotation_text=f'Threshold ({round(-BEST_THRESHOLD, 4)})'
+                y=threshold, line_dash='dash', line_color='#FFC107',
+                annotation_text='Threshold', annotation_position="top left"
             )
-            attacks_df = df_display[df_display['final'] == 1]
-            if len(attacks_df) > 0:
+            
+            alerts_df = df_display[df_display['final'] == 1]
+            if len(alerts_df) > 0:
                 fig.add_trace(go.Scatter(
-                    x=attacks_df['window_id'], y=attacks_df['score'],
+                    x=alerts_df['window_id'], y=alerts_df['score'],
                     mode='markers', name='Attack',
-                    marker=dict(color='red', size=10, symbol='x')
+                    marker=dict(color='#DC3545', size=10, symbol='circle')
                 ))
+            
             fp_df = df_display[(df_display['stage1']==1) & (df_display['final']==0)]
             if len(fp_df) > 0:
                 fig.add_trace(go.Scatter(
                     x=fp_df['window_id'], y=fp_df['score'],
-                    mode='markers', name='FP Reduced',
-                    marker=dict(color='gold', size=8, symbol='star')
+                    mode='markers', name='FP Blocked',
+                    marker=dict(color='#28A745', size=12, symbol='star')
                 ))
+            
             fig.update_layout(
-                height=350,
+                height=400,
                 margin=dict(l=0, r=0, t=10, b=0),
                 legend=dict(orientation='h', y=-0.2),
-                yaxis_title='Anomaly Score (higher = more suspicious)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
+                xaxis_title='Time Step (Window ID)',
+                yaxis_title='Suspicion Score',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
             )
             chart_placeholder.plotly_chart(fig, use_container_width=True)
 
