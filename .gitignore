@@ -1,7 +1,4 @@
 __pycache__/
 venv/
 .venv/
-*.csv
-dataset/
-models/
-models/*.pkl
+dataset/raw/
