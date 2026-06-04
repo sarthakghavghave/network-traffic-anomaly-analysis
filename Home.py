@@ -1,42 +1,101 @@
 import streamlit as st
 from PIL import Image
-from utils import load_models, load_data
-from config import FIG_DIR, BEST_THRESHOLD, WINDOW_SIZE
+from utils import load_pipeline, load_data
+from scripts.config import FIG_DIR, WINDOW_SIZE
 
 st.set_page_config(
     page_title="Network Traffic Anomaly Detection",
     page_icon="🛡️",
     layout="wide"
 )
-
-st.title("Network Traffic Anomaly Detection & False Positive Reduction")
 st.markdown("""
-*Welcome to the IDS Dashboard.*\n
-This interactive tool allows you to replay network traffic windows through our two-stage anomaly detection pipeline, visualizing the anomaly scores and model predictions in real-time.
-""")
-df_windowed, _, _, _ = load_data()
-image = Image.open(FIG_DIR / "anomaly_scores.png")
-# pipeline
-st.markdown("### Detection Pipeline")
-st.markdown(f"""1. **Stage 1 - Isolation Forest**: Each window's features are passed to a pre-trained Isolation Forest model which outputs an anomaly score. Windows with scores below the threshold of **{BEST_THRESHOLD}** are flagged.""")
+<style>
+    .main { background-color: #FFFFFF; }
+    .stMetric { background-color: #F8F9FA; padding: 15px; border-radius: 10px; border: 1px solid #E9ECEF; }
+    [data-testid="stSidebar"] { background-color: #F8F9FA; border-right: 1px solid #E9ECEF; }
+    h1, h2, h3 { color: #212529; }
+</style>
+""", unsafe_allow_html=True)
 
-st.image(image, caption="Isolation Forest Anomaly Scores")
+st.title("🛡️ Network Traffic Anomaly Detection & FP Reduction")
+st.markdown("*Interactive dashboard for two-stage intrusion detection.*")
 
-st.markdown(f"""2. **Stage 2 - Random Forest**: Flagged windows are then passed to a Random Forest classifier that determines whether the window is an attack or normal, aiming to reduce false positives from Stage 1.""")
-# Dataset
-st.markdown("### Dataset Overview")
-st.markdown(f"We are working with a test set of **{len(df_windowed)} windows** derived from the **[UNSW NB-15 dataset](https://research.unsw.edu.au/projects/unsw-nb15-dataset)**.")
+st.sidebar.header("🛠️ Configuration")
+pipeline_type = st.sidebar.selectbox(
+    "Detection Pipeline",
+    ["Isolation Forest + RF", "Autoencoder + SVM"],
+    index=1
+)
 
-iso, scaler, rf = load_models()
+s1, scaler, s2, threshold = load_pipeline(pipeline_type)
 df_windowed, df_normal, attack_stats, expected_cols = load_data()
 
-feature_cols = [col for col in expected_cols if col not in ['window_id', 'window_attack']]
+col1, col2, col3, col4 = st.columns(4)
+attack_count = int(df_windowed['window_attack'].sum())
+normal_count = len(df_windowed) - attack_count
+feature_count = len([c for c in expected_cols if c not in ['window_id', 'window_attack']])
 
-st.sidebar.image("https://img.icons8.com/color/96/shield.png", width=80)
-st.sidebar.title("🛡️ IDS Dashboard")
-st.sidebar.markdown("---")
-st.sidebar.markdown("**Pipeline Status**")
-st.sidebar.success("✓ Models ready")
-st.sidebar.info("Select a page to begin")
-st.sidebar.markdown(f"**Threshold:** `{BEST_THRESHOLD}`")
-st.sidebar.markdown(f"**Window Size:** `{WINDOW_SIZE} flows`")
+with col1:
+    st.metric("Test Windows", f"{len(df_windowed):,}")
+with col2:
+    st.metric("Total Attacks", attack_count)
+with col3:
+    st.metric("Normal Windows", normal_count)
+with col4:
+    st.metric("Features", feature_count)
+
+st.markdown("---")
+
+col1, col2 = st.columns(2)
+
+if pipeline_type == "Isolation Forest + RF":
+    s1_name, s1_desc = "Isolation Forest", "Detects statistical anomalies by isolating observations in feature space."
+    s2_name, s2_desc = "Random Forest", "Supervised filter that distinguishes true attacks from noisy anomalies."
+    fp_red = "88.6%"
+else:
+    s1_name, s1_desc = "Autoencoder (DL)", "Unsupervised neural network trained to reconstruct normal traffic. High reconstruction error = Anomaly."
+    s2_name, s2_desc = "SVM (Stage 2)", "Learns the specific boundary between FP noise and actual cyber attacks."
+    fp_red = "100.0%"
+
+with col1:
+    st.markdown(f"### 🔍 Stage 1: {s1_name}")
+    st.markdown(f"""
+    {s1_desc}
+    - **Current Status**: Active
+    - **Threshold Type**: {'Negative Score' if 'Isolation' in s1_name else 'MSE (90th Pctl)'}
+    """)
+
+with col2:
+    st.markdown(f"### 🎯 Stage 2: {s2_name}")
+    st.markdown(f"""
+    {s2_desc}
+    - **FP Reduction**: **{fp_red}**
+    - **Current Status**: Active
+    """)
+
+st.markdown("---")
+
+if FIG_DIR.exists() and (FIG_DIR / "anomaly_scores.png").exists():
+    try:
+        st.markdown("### Model Comparison: Training Distribution")
+        image = Image.open(FIG_DIR / "anomaly_scores.png")
+        st.image(image, use_column_width=True)
+    except:
+        pass
+
+st.markdown("---")
+
+st.markdown("### 📊 Dataset: UNSW-NB15")
+st.markdown(f"""
+- Window Size: **{WINDOW_SIZE} flows** per aggregation
+- Normal Library: {len(df_normal):,} baseline windows
+- Testing Pool: {len(df_windowed):,} mixed test windows
+""")
+
+st.markdown("---")
+
+st.info("""
+**Navigate using the sidebar:**
+- **Replay Monitor**: Live simulation of detection on the test set.
+- **Model Performance**: Detailed metrics for both stages.
+""")

@@ -20,7 +20,7 @@ st.markdown("""
 st.title("📈 Model Performance Metrics")
 st.markdown("Detailed performance evaluation of the two-stage detection pipeline.")
 
-tab1, tab2, tab3 = st.tabs(["Overall Performance", "Category Breakdown", "Stage Comparison"])
+tab1, tab2 = st.tabs(["Overall Performance", "Category Breakdown"])
 
 with tab1:
     st.markdown("### Isolation Forest + Random Forest Metrics")
@@ -97,56 +97,3 @@ with tab2:
                 st.metric(f"{emoji} {category}", f"{display_metric:.1%}")
     else:
         st.info("`attack_category_results.csv` not found")
-
-with tab3:
-    st.markdown("### Stage 1 vs Stage 2: Why Two Stages?")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Stage 1: Isolation Forest (Unsupervised)")
-        st.markdown("""
-        **Function**: Detect anomalies broadly
-        
-        **Performance**:
-        - Recall: ~97% (catches most attacks)
-        - Precision: ~18% (many false alerts)
-        
-        **Why**: No labels needed, catches novel attacks
-        """)
-    
-    with col2:
-        st.markdown("#### Stage 2: Random Forest (Supervised)")
-        st.markdown("""
-        **Function**: Filter false positives
-        
-        **Performance**:
-        - Reduces FP by 88.6%
-        - Maintains Recall: ~97%
-        
-        **Why**: Refines Stage 1 using attack examples
-        """)
-    
-    st.markdown("---")
-    
-    st.markdown("#### The Problem & Solution")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Single Detector Problem**:")
-        st.markdown("""
-        Too strict → misses attacks (low recall)
-        Too sensitive → high false alerts (low precision)
-        Can't balance both simultaneously
-        **Result**: Operationally unusable
-        """)
-    
-    with col2:
-        st.markdown("**Two-Stage Solution**:")
-        st.markdown("""
-        Stage 1: Broad net (97% recall)
-        Stage 2: Refine (88.6% FP reduction)
-        Best of both worlds
-        **Result**: Operationally viable
-        """)
