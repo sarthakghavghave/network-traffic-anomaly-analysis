@@ -18,16 +18,8 @@ st.markdown("""
 st.title("📈 Replay Monitor")
 st.markdown("Replaying UNSW-NB15 test set through the selected two-stage pipeline.")
 
-# Sidebar Configuration
-st.sidebar.header("🛠️ Configuration")
-pipeline_type = st.sidebar.selectbox(
-    "Detection Pipeline",
-    ["Isolation Forest + RF", "Autoencoder + SVM"],
-    index=1
-)
-
 # Load resources
-s1_model, scaler, s2_model, model_threshold = load_pipeline(pipeline_type)
+s1_model, scaler, s2_model, model_threshold = load_pipeline()
 df_windowed, _, _, expected_cols = load_data()
 feature_cols = [col for col in expected_cols if col not in ['window_id', 'window_attack']]
 
@@ -62,7 +54,7 @@ if start:
 
     for i, row in df_windowed.iterrows():
         window_row = df_windowed.iloc[[i]]
-        score, threshold, s1, s2 = predict_window(window_row, feature_cols, scaler, s1_model, s2_model, pipeline_type)
+        score, threshold, s1, s2 = predict_window(window_row, feature_cols, scaler, s1_model, s2_model)
         
         actual = int(row['window_attack'])
         
@@ -143,11 +135,7 @@ if start:
         # Update metrics
         s1_placeholder.metric("Stage 1 Flags", s1_flags)
         s2_placeholder.metric("Final Alerts",  s2_alerts)
-        
-        status_placeholder.info(
-            f"Analyzing Window {int(row['window_id'])} | "
-            f"Pipeline: {pipeline_type}"
-        )
+
         time.sleep(1 / speed)
 
     status_placeholder.success(

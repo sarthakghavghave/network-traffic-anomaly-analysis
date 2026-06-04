@@ -20,14 +20,7 @@ st.markdown("""
 st.title("🛡️ Network Traffic Anomaly Detection & FP Reduction")
 st.markdown("*Interactive dashboard for two-stage intrusion detection.*")
 
-st.sidebar.header("🛠️ Configuration")
-pipeline_type = st.sidebar.selectbox(
-    "Detection Pipeline",
-    ["Isolation Forest + RF", "Autoencoder + SVM"],
-    index=1
-)
-
-s1, scaler, s2, threshold = load_pipeline(pipeline_type)
+s1, scaler, s2, threshold = load_pipeline()
 df_windowed, df_normal, attack_stats, expected_cols = load_data()
 
 col1, col2, col3, col4 = st.columns(4)
@@ -48,14 +41,9 @@ st.markdown("---")
 
 col1, col2 = st.columns(2)
 
-if pipeline_type == "Isolation Forest + RF":
-    s1_name, s1_desc = "Isolation Forest", "Detects statistical anomalies by isolating observations in feature space."
-    s2_name, s2_desc = "Random Forest", "Supervised filter that distinguishes true attacks from noisy anomalies."
-    fp_red = "88.6%"
-else:
-    s1_name, s1_desc = "Autoencoder (DL)", "Unsupervised neural network trained to reconstruct normal traffic. High reconstruction error = Anomaly."
-    s2_name, s2_desc = "SVM (Stage 2)", "Learns the specific boundary between FP noise and actual cyber attacks."
-    fp_red = "100.0%"
+s1_name, s1_desc = "Isolation Forest", "Detects statistical anomalies by isolating observations in feature space."
+s2_name, s2_desc = "Random Forest", "Supervised filter that distinguishes true attacks from noisy anomalies."
+fp_red = "88.6%"
 
 with col1:
     st.markdown(f"### 🔍 Stage 1: {s1_name}")

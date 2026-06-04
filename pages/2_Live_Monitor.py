@@ -20,16 +20,8 @@ st.markdown("""
 st.title("📡 Live Monitor")
 st.markdown("Scoring real network traffic captured from your network interface.")
 
-# Sidebar Configuration
-st.sidebar.header("🛠️ Configuration")
-pipeline_type = st.sidebar.selectbox(
-    "Detection Pipeline",
-    ["Isolation Forest + RF", "Autoencoder + SVM"],
-    index=1
-)
-
 # Load resources
-s1_model, scaler, s2_model, model_threshold = load_pipeline(pipeline_type)
+s1_model, scaler, s2_model, model_threshold = load_pipeline()
 _, _, _, expected_cols = load_data()
 feature_cols = [col for col in expected_cols if col not in ['window_id', 'window_attack']]
 
@@ -64,8 +56,6 @@ def read_buffer():
         return []
 
 if start:
-    st.success(f"Connected using {pipeline_type}. Waiting for traffic...")
-
     last_id      = -1
     history      = []
     total_flags  = 0
@@ -79,7 +69,7 @@ if start:
 
             for w in new_windows:
                 df_row = pd.DataFrame([w])
-                score, threshold, s1, s2 = predict_window(df_row, feature_cols, scaler, s1_model, s2_model, pipeline_type)
+                score, threshold, s1, s2 = predict_window(df_row, feature_cols, scaler, s1_model, s2_model)
 
                 if s1 == 1: total_flags   += 1
                 if s2 == 1: total_attacks += 1
